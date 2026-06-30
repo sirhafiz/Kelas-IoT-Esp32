@@ -1,0 +1,56 @@
+/*
+ * Amali 2 (Bahagian A): Pengujian Sensor Cahaya dan LED
+ * Objektif: Mengesahkan kefungsian LDR. Jika gelap, LED dihidupkan.
+ * Nota: Kod ini serasi untuk Modul LDR mahupun LDR Asas. Nilai ambang (1000) mungkin perlu dilaras.
+ */
+
+// ---------------------------------------------------------
+// TETAPAN PIN KOMPONEN (LDR & LED)
+// ---------------------------------------------------------
+const int ldrPin = 34;   // Pin Input Analog untuk Sensor Cahaya (LDR)
+const int ledPin = 4;    // Pin Output Digital untuk komponen penunjuk LED
+
+void setup() {
+  // 1. Inisialisasi komunikasi Serial Monitor pada kelajuan 115200
+  Serial.begin(115200);  
+  
+  // 2. Inisialisasi status pin input dan output
+  pinMode(ldrPin, INPUT);
+  pinMode(ledPin, OUTPUT);
+}
+
+void loop() {
+  // ---------------------------------------------------------
+  // BACAAN DATA DARI SENSOR LDR
+  // ---------------------------------------------------------
+  // Membaca nilai dari LDR (Julat nilai pada ESP32: 0 hingga 4095)
+  int ldrValue = analogRead(ldrPin);
+  
+  // ---------------------------------------------------------
+  // PAPARAN KE SERIAL MONITOR
+  // ---------------------------------------------------------
+  Serial.print("Nilai Cahaya: ");
+  Serial.println(ldrValue);
+
+  // ---------------------------------------------------------
+  // ALGORITMA KAWALAN LOGIK BERSYARAT (LED)
+  // ---------------------------------------------------------
+  // NOTA PENTING: Sila semak bacaan di Serial Monitor.
+  // - Jika guna Modul LDR: Biasanya Gelap = Nilai Tinggi, Terang = Nilai Rendah.
+  // - Jika guna LDR Asas (Voltage Divider): Biasanya Gelap = Nilai Rendah, Terang = Nilai Tinggi.
+  // Sila ubah nilai (1000) atau simbol '<' atau '>' mengikut keperluan perkakasan anda.
+  
+  if (ldrValue < 1000) { 
+    // Logik Asal: Persekitaran disifatkan Gelap -> LED Menyala
+    digitalWrite(ledPin, HIGH); 
+    Serial.println("Status: LED Diaktifkan");
+  } 
+  else {
+    // Logik Asal: Persekitaran disifatkan Terang -> LED Padam
+    digitalWrite(ledPin, LOW);  
+    Serial.println("Status: LED Dinyahaktifkan");
+  }
+  
+  // 3. Lengah masa 0.5 saat sebelum kitaran bacaan diulang (untuk kestabilan sistem)
+  delay(500); 
+}
