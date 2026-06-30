@@ -1,0 +1,30 @@
+KOD SUMBER: Amali 1 (Bahagian A - LED Terbina Dalam / Onboard)
+/*
+ * Amali 1A: Pengujian Operasi Asas (Onboard Blink Test)
+ * Objektif: Menguji kefungsian mikropengawal ESP32 tanpa pendawaian luar
+ */
+
+// ---------------------------------------------------------
+// TETAPAN PIN KOMPONEN (LED TERBINA DALAM)
+// ---------------------------------------------------------
+// Menetapkan pin LED terbina dalam. ESP32 DevKit V1 biasanya menggunakan Pin 2.
+const int ledPin = 2; 
+
+void setup() {
+  // 1. Mengisytiharkan pin LED terbina dalam sebagai saluran output
+  pinMode(ledPin, OUTPUT);
+}
+
+void loop() {
+  // ---------------------------------------------------------
+  // KAWALAN LOGIK LED (KELIPAN / BLINKING)
+  // ---------------------------------------------------------
+  
+  // 1. Menghidupkan LED (Voltan tinggi / Arus mengalir)
+  digitalWrite(ledPin, HIGH);  
+  delay(1000); // Lengah masa selama 1000 milisaat (1 saat)
+  
+  // 2. Mematikan LED (Voltan rendah / Arus dihentikan)
+  digitalWrite(ledPin, LOW);   
+  delay(1000); // Lengah masa selama 1 saat sebelum gelung berulang
+}
