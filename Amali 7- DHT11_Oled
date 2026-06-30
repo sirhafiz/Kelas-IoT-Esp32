@@ -1,6 +1,9 @@
 /*
  * Ujian Berasingan: Sensor Suhu & Kelembapan (DHT11) + OLED SSD1306
  * Objektif: Baca DHT11 dan papar di Serial Monitor + OLED
+*install library : 
+1. Library utama: Adafruit SSD1306
+2. Library sokongan (wajib): Adafruit GFX Library
  */
 
 #include <DHT.h>
