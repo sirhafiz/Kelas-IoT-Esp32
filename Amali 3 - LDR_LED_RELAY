@@ -1,0 +1,54 @@
+/*
+ * Amali 2 (Bahagian B): Naik Taraf dengan Modul Relay
+ * Objektif: Menambah fungsi pengaktifan suis mekanikal berdasarkan sensor LDR
+ */
+
+// ---------------------------------------------------------
+// TETAPAN PIN KOMPONEN (LDR, LED & RELAY)
+// ---------------------------------------------------------
+const int ldrPin = 34;   // Pin Input Analog untuk Sensor Cahaya (LDR)
+const int ledPin = 4;    // Pin Output Digital untuk penunjuk LED
+const int relayPin = 5;  // Pin Output Digital untuk Modul Relay
+
+void setup() {
+  // 1. Inisialisasi komunikasi Serial Monitor
+  Serial.begin(9600);  
+  
+  // 2. Inisialisasi status pin input dan output
+  pinMode(ldrPin, INPUT);
+  pinMode(ledPin, OUTPUT);
+  pinMode(relayPin, OUTPUT); // Penetapan status pin Relay
+}
+
+void loop() {
+  // ---------------------------------------------------------
+  // BACAAN DATA DARI SENSOR LDR
+  // ---------------------------------------------------------
+  int ldrValue = analogRead(ldrPin);
+  
+  // ---------------------------------------------------------
+  // PAPARAN KE SERIAL MONITOR
+  // ---------------------------------------------------------
+  Serial.print("Nilai Cahaya: ");
+  Serial.println(ldrValue);
+
+  // ---------------------------------------------------------
+  // ALGORITMA KAWALAN LOGIK (LED & RELAY)
+  // ---------------------------------------------------------
+  // NOTA: Sila ubah nilai ambang (threshold) atau simbol '<' '>' mengikut bacaan sebenar
+  if (ldrValue < 1000) { 
+    // Persekitaran disifatkan gelap -> Aktifkan LED dan Relay
+    digitalWrite(ledPin, HIGH);
+    digitalWrite(relayPin, HIGH);
+    Serial.println("Status: GELAP - Sistem Diaktifkan");
+  } 
+  else {
+    // Persekitaran disifatkan terang -> Nyahaktifkan LED dan Relay
+    digitalWrite(ledPin, LOW);
+    digitalWrite(relayPin, LOW);
+    Serial.println("Status: TERANG - Sistem Dinyahaktifkan");
+  }
+  
+  // 3. Lengah masa 0.5 saat sebelum kitaran bacaan diulang
+  delay(500); 
+}
