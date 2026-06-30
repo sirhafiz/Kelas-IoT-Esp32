@@ -1,6 +1,8 @@
 /*
- * ESP32 Web Server - Suhu & Kelembapan DHT11
- * Menggunakan ESPAsyncWebServer + AsyncTCP
+ * ESP32 Web Server DHT11 - Versi Stabil
+Install 2 library ini sahaja:
+Cari: AsyncTCP → oleh ESP32Async → Install
+Cari: ESPAsyncWebServer → oleh ESP32Async → Install
  */
 
 #include <WiFi.h>
@@ -8,66 +10,78 @@
 #include <DHT.h>
 
 // ==================== TETAPAN ====================
-// WiFi
-const char* ssid = "Nama_WiFi_Kau";          // Ganti dengan SSID WiFi awak
-const char* password = "Password_WiFi_Kau";  // Ganti dengan password WiFi
+const char* ssid = "Redmi13";           // GANTI DENGAN WIFI AWAK
+const char* password = "ha.fiz123";   // GANTI
 
-// DHT11
 #define DHTPIN 14
 #define DHTTYPE DHT11
-DHT dht(DHTPIN, DHTTYPE);
 
-// Web Server
+DHT dht(DHTPIN, DHTTYPE);
 AsyncWebServer server(80);
 
-// Pembolehubah bacaan
-float suhu = 0.0;
-float kelembapan = 0.0;
+// =================================================
 
-// HTML Halaman Web
+String readTemperature() {
+  float t = dht.readTemperature();
+  if (isnan(t)) {
+    Serial.println("Ralat baca suhu!");
+    return "--";
+  }
+  return String(t, 1);
+}
+
+String readHumidity() {
+  float h = dht.readHumidity();
+  if (isnan(h)) {
+    Serial.println("Ralat baca kelembapan!");
+    return "--";
+  }
+  return String(h, 1);
+}
+
+// ==================== HTML ====================
 const char index_html[] PROGMEM = R"rawliteral(
-<!DOCTYPE HTML>
-<html>
+<!DOCTYPE HTML><html>
 <head>
-  <title>ESP32 DHT11 Monitor</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ESP32 DHT11 Monitor</title>
   <style>
-    body { font-family: Arial; text-align: center; background: #f0f0f0; }
-    h1 { color: #0066cc; }
-    .card { background: white; padding: 20px; margin: 20px auto; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); max-width: 400px; }
-    .value { font-size: 2.5em; font-weight: bold; color: #0066cc; }
-    .refresh { margin-top: 20px; padding: 10px 20px; font-size: 1em; }
+    body { font-family: Arial; text-align: center; background: #f0f0f0; margin:0; }
+    h1 { color: #0066cc; padding: 20px; }
+    .card { background: white; margin: 20px auto; padding: 20px; border-radius: 15px; 
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1); max-width: 420px; }
+    .value { font-size: 3.8rem; font-weight: bold; color: #0066cc; margin: 10px 0; }
+    .label { font-size: 1.4rem; color: #555; }
   </style>
 </head>
 <body>
-  <h1>ESP32 DHT11 Web Server</h1>
+  <h1>ESP32 DHT11</h1>
   
   <div class="card">
-    <h2>Suhu Bilik</h2>
-    <div class="value" id="suhu">--.-</div>
-    <p>*C</p>
+    <div class="label">Suhu Bilik</div>
+    <div class="value" id="temp">--.-</div>
+    <span>&deg;C</span>
   </div>
 
   <div class="card">
-    <h2>Kelembapan</h2>
-    <div class="value" id="kelembapan">--.-</div>
-    <p>%</p>
+    <div class="label">Kelembapan Udara</div>
+    <div class="value" id="hum">--.-</div>
+    <span>%</span>
   </div>
 
-  <button class="refresh" onclick="location.reload()">Refresh</button>
+<script>
+setInterval(() => {
+  fetch('/temperature').then(r => r.text()).then(t => {
+    document.getElementById('temp').textContent = t;
+  });
+}, 2000);
 
-  <script>
-    function updateData() {
-      fetch('/data')
-        .then(response => response.json())
-        .then(data => {
-          document.getElementById('suhu').textContent = data.suhu.toFixed(1);
-          document.getElementById('kelembapan').textContent = data.kelembapan.toFixed(1);
-        });
-    }
-    setInterval(updateData, 2000);  // Auto update setiap 2 saat
-    window.onload = updateData;
-  </script>
+setInterval(() => {
+  fetch('/humidity').then(r => r.text()).then(h => {
+    document.getElementById('hum').textContent = h;
+  });
+}, 2000);
+</script>
 </body>
 </html>
 )rawliteral";
@@ -77,48 +91,32 @@ void setup() {
   Serial.begin(115200);
   dht.begin();
 
-  // Sambung WiFi
   WiFi.begin(ssid, password);
   Serial.print("Menyambung ke WiFi");
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
   }
-  Serial.println("\nWiFi Berjaya Disambung!");
-  Serial.print("IP Address: ");
+  Serial.println("\nWiFi Berjaya!");
+  Serial.print("IP: ");
   Serial.println(WiFi.localIP());
 
-  // Route untuk halaman utama
-  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
     request->send_P(200, "text/html", index_html);
   });
 
-  // Route untuk data JSON
-  server.on("/data", HTTP_GET, [](AsyncWebServerRequest *request){
-    String json = "{";
-    json += "\"suhu\":" + String(suhu) + ",";
-    json += "\"kelembapan\":" + String(kelembapan);
-    json += "}";
-    request->send(200, "application/json", json);
+  server.on("/temperature", HTTP_GET, [](AsyncWebServerRequest *request) {
+    request->send(200, "text/plain", readTemperature().c_str());
   });
 
-  // Mula Web Server
+  server.on("/humidity", HTTP_GET, [](AsyncWebServerRequest *request) {
+    request->send(200, "text/plain", readHumidity().c_str());
+  });
+
   server.begin();
-  Serial.println("ESP32 Web Server Dimulakan!");
+  Serial.println("Web Server Sedang Berjalan!");
 }
 
 void loop() {
-  // Baca sensor setiap 2 saat
-  static unsigned long lastRead = 0;
-  if (millis() - lastRead > 2000) {
-    suhu = dht.readTemperature();
-    kelembapan = dht.readHumidity();
-    
-    if (isnan(suhu) || isnan(kelembapan)) {
-      Serial.println("Ralat membaca DHT11!");
-    } else {
-      Serial.printf("Suhu: %.1f°C | Kelembapan: %.1f%%\n", suhu, kelembapan);
-    }
-    lastRead = millis();
-  }
+  delay(1000);
 }
