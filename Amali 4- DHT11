@@ -1,0 +1,55 @@
+/*
+ * Ujian Berasingan: Sensor Suhu & Kelembapan (DHT11)
+ * Objektif: Membaca data dari sensor DHT11 dan papar di Serial Monitor.
+ * Nota: Pastikan pustaka 'DHT sensor library' oleh Adafruit telah dipasang.
+ */
+
+#include <DHT.h>
+
+// ---------------------------------------------------------
+// TETAPAN SENSOR SUHU & KELEMBAPAN (DHT11)
+// ---------------------------------------------------------
+#define DHTPIN 14       // Pin sambungan data DHT11 (Diselaraskan)
+#define DHTTYPE DHT11   // Jenis sensor yang digunakan
+DHT dht(DHTPIN, DHTTYPE); // Pembentukan entiti objek DHT
+
+void setup() {
+  // 1. Inisialisasi komunikasi Serial Monitor
+  Serial.begin(115200); 
+  
+  // 2. Inisialisasi operasi Sensor Suhu DHT11
+  dht.begin();
+  
+  Serial.println("Sistem Ujian Sensor DHT11 Dimulakan...");
+}
+
+void loop() {
+  // ---------------------------------------------------------
+  // BACAAN DATA DARI SENSOR DHT11
+  // ---------------------------------------------------------
+  float suhu = dht.readTemperature(); // Membaca nilai suhu (Celsius)
+  float kelembapan = dht.readHumidity(); // Membaca nilai kelembapan (%)
+  
+  // ---------------------------------------------------------
+  // PAPARAN KE SERIAL MONITOR
+  // ---------------------------------------------------------
+  Serial.println("===============================");
+  
+  // Semakan ralat bagi memastikan DHT11 tidak gagal memberikan bacaan
+  if (isnan(suhu) || isnan(kelembapan)) {
+    Serial.println("Ralat: Gagal membaca isyarat sensor DHT11!");
+  } else {
+    Serial.print("Suhu Bilik  : ");
+    Serial.print(suhu);
+    Serial.println(" *C");
+    
+    Serial.print("Kelembapan  : ");
+    Serial.print(kelembapan);
+    Serial.println(" %");
+  }
+  
+  Serial.println("===============================\n");
+
+  // 3. Lengah masa 2 saat sebelum kitaran bacaan diulang
+  delay(2000); 
+}
