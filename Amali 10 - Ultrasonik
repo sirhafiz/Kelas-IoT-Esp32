@@ -1,0 +1,51 @@
+/*
+ * Ujian Berasingan: Sensor Jarak (Ultrasonik HC-SR04)
+ * Objektif: Membaca jarak objek dan papar di Serial Monitor.
+ */
+
+// ---------------------------------------------------------
+// TETAPAN SENSOR JARAK (ULTRASONIK HC-SR04)
+// ---------------------------------------------------------
+const int trigPin = 27; // Pin pencetus isyarat bunyi
+const int echoPin = 26; // Pin penerima pantulan bunyi
+
+void setup() {
+  // 1. Inisialisasi komunikasi Serial Monitor
+  Serial.begin(115200); 
+  
+  // 2. Inisialisasi status pin Ultrasonik
+  pinMode(trigPin, OUTPUT);
+  pinMode(echoPin, INPUT);
+  
+  Serial.println("Sistem Ujian Sensor Ultrasonik Dimulakan...");
+}
+
+void loop() {
+  // ---------------------------------------------------------
+  // ALGORITMA BACAAN SENSOR ULTRASONIK
+  // ---------------------------------------------------------
+  // Menghantar denyutan (pulse) isyarat bunyi
+  digitalWrite(trigPin, LOW); 
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH); 
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+  
+  // Membaca tempoh masa isyarat tersebut memantul kembali
+  long tempoh = pulseIn(echoPin, HIGH);
+  
+  // Kiraan formula kelajuan gelombang bunyi (tukar ke sentimeter)
+  float jarak = tempoh * 0.034 / 2; 
+
+  // ---------------------------------------------------------
+  // PAPARAN KE SERIAL MONITOR
+  // ---------------------------------------------------------
+  Serial.println("===============================");
+  Serial.print("Jarak Objek : ");
+  Serial.print(jarak);
+  Serial.println(" cm");
+  Serial.println("===============================\n");
+
+  // 3. Lengah masa 2 saat sebelum kitaran bacaan diulang
+  delay(2000); 
+}
