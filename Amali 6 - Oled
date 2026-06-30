@@ -1,0 +1,96 @@
+/*
+ * Amali 4: Pemantauan Data Kendiri (Penyepaduan Paparan Skrin OLED I2C)
+ * Objektif: Mengalihkan paparan data dari Serial Monitor (PC) ke Skrin OLED fizikal.
+ * Nota: Anda WAJIB memuat turun pustaka tambahan 'Adafruit GFX' dan 'Adafruit SSD1306'
+ */
+
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+#include <DHT.h>
+
+// ---------------------------------------------------------
+// TETAPAN SENSOR JARAK (ULTRASONIK HC-SR04)
+// ---------------------------------------------------------
+const int trigPin = 27;
+const int echoPin = 26;
+
+// ---------------------------------------------------------
+// TETAPAN SENSOR SUHU (DHT11)
+// ---------------------------------------------------------
+#define DHTPIN 14
+#define DHTTYPE DHT11   
+DHT dht(DHTPIN, DHTTYPE);
+
+// ---------------------------------------------------------
+// TETAPAN SKRIN OLED (I2C)
+// ---------------------------------------------------------
+#define SCREEN_WIDTH 128 // Lebar resolusi 128 px
+#define SCREEN_HEIGHT 64 // Tinggi resolusi 64 px
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
+
+void setup() {
+  Serial.begin(115200);
+  
+  // 1. Inisialisasi pin Ultrasonik
+  pinMode(trigPin, OUTPUT);
+  pinMode(echoPin, INPUT);
+  
+  // 2. Inisialisasi Sensor Suhu (DHT11)
+  dht.begin();
+
+  // 3. Inisialisasi OLED menggunakan protokol komunikasi I2C (Alamat lalai: 0x3C)
+  if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+    Serial.println(F("Ralat: Gagal menemukan perkakasan paparan OLED!"));
+    for(;;); // Hentikan gelung sistem secara paksa jika komponen OLED gagal dikesan
+  }
+  
+  // 4. Membersihkan ruang memori paparan skrin dan menetapkan warna tulisan
+  display.clearDisplay();
+  display.setTextColor(WHITE);
+}
+
+void loop() {
+  // ---------------------------------------------------------
+  // BACAAN DATA DARI SENSOR
+  // ---------------------------------------------------------
+  // Membaca nilai dari DHT11
+  float suhu = dht.readTemperature();
+  
+  // Membaca nilai dari Ultrasonik (HC-SR04)
+  digitalWrite(trigPin, LOW); delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH); delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+  long tempoh = pulseIn(echoPin, HIGH);
+  float jarak = tempoh * 0.034 / 2; // Kiraan formula kelajuan bunyi metrik
+
+  // ---------------------------------------------------------
+  // PROSES LUKISAN PAPARAN KE CANGKANG SKRIN OLED
+  // ---------------------------------------------------------
+  display.clearDisplay(); // Bersihkan skrin daripada lelebihan piksel cetakan data sebelumnya
+  
+  // Tetapan Baris Tajuk Atas (Header)
+  display.setTextSize(1);
+  display.setCursor(0, 0); // Kordinat mula lukisan (x=0, y=0)
+  display.print("Sistem Pemantauan IoT");
+  display.drawLine(0, 10, 128, 10, WHITE); // Lukisan visual garis melintang sebagai pemisah
+  
+  display.setTextSize(2); // Menukar saiz tulisan kepada resolusi besar untuk kemudahan bacaan angka data
+  
+  // Cetakan Rangkuman Baris Suhu
+  display.setCursor(0, 16);
+  display.print("Suhu:");
+  display.print((int)suhu); // Fungsi 'int' memotong nilai perpuluhan (float) demi menjimatkan ruang paparan
+  display.print("C");
+  
+  // Cetakan Rangkuman Baris Jarak
+  display.setCursor(0, 40);
+  display.print("Jarak:");
+  display.print((int)jarak);
+  display.print("cm");
+
+  // Melaksanakan arahan himpunan cetakan (Flush) secara fizikal pada permukaan skrin OLED
+  display.display(); 
+  
+  delay(2000); // Lengah masa 2 saat sebelum imbasan semula sistem
+}
