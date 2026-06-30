@@ -1,0 +1,41 @@
+Amali 2A (Uji fungsi: Sensor LDR)
+/*
+ * Amali 2 (Bahagian A): Pengujian Sensor Cahaya (LDR)
+ * Objektif: Membaca nilai analog dari sensor LDR dan memaparkan status ON/OFF di Serial Monitor.
+ */
+
+// ---------------------------------------------------------
+// TETAPAN PIN KOMPONEN (LDR)
+// ---------------------------------------------------------
+#define ldrPin 34 // Pin Input Analog untuk ESP32 (GIOP34 / ADC0)
+
+void setup() {
+  // 1. Inisialisasi komunikasi Serial Monitor pada kelajuan 9600 bps
+  Serial.begin(9600);
+}
+
+void loop() {
+  // ---------------------------------------------------------
+  // BACAAN DATA DARI SENSOR LDR
+  // ---------------------------------------------------------
+  // Membaca nilai input pada pin analog (julat nilai antara 0 hingga 4095)
+  int ldrValue = analogRead(ldrPin);
+
+  // ---------------------------------------------------------
+  // PAPARAN KE SERIAL MONITOR & KAWALAN LOGIK
+  // ---------------------------------------------------------
+  Serial.print("Analog Value = ");
+  Serial.print(ldrValue);   // Memaparkan nilai bacaan analog mentah
+
+  // NOTA: Sila ubah nilai ambang (1000) atau simbol '<' atau '>' 
+  // mengikut kesesuaian bacaan Serial Monitor anda.
+  if (ldrValue < 1000) {
+    Serial.println(" => OFF");
+  }
+  else {
+    Serial.println(" => ON");
+  }
+
+  // 2. Lengah masa 0.5 saat sebelum kitaran bacaan diulang
+  delay(500);
+}
