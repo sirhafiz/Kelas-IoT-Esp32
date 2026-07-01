@@ -1,0 +1,292 @@
+/*
+ * Amali 5.3 (Kemas Kini Skrin OLED, Buzzer Pintar, LDR & LED, Status WiFi)
+ * Sasaran: ESP32 + DHT11 + OLED SSD1306 (I2C) + Buzzer Pin 17 + LDR Pin 34 + LED Pin 4
+ */
+
+#include <WiFi.h>
+#include <PubSubClient.h>
+#include <DHT.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+
+// ---------------------------------------------------------
+// TETAPAN SKRIN OLED (SSD1306 I2C)
+// ---------------------------------------------------------
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+#define OLED_RESET    -1
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+
+// ---------------------------------------------------------
+// TETAPAN RANGKAIAN (WIFI & MQTT)
+// ---------------------------------------------------------
+const char* ssid = "Redmi13";           
+const char* password = "ha.fiz123";        
+const char* mqtt_server = "broker.emqx.io";       
+
+// MQTT Topics
+const char* topic_suhu = "Polycc/kk10/suhu";
+const char* topic_humid = "Polycc/kk10/humid";
+const char* topic_buzzer = "Polycc/kk10/buzzer";
+const char* topic_ldr = "Polycc/kk12/ldr";
+const char* topic_led = "Polycc/kk12/led";
+
+// ---------------------------------------------------------
+// TETAPAN PIN SENSOR, BUZZER & LED
+// ---------------------------------------------------------
+#define DHTPIN 14
+#define DHTTYPE DHT11   
+DHT dht(DHTPIN, DHTTYPE);
+
+#define BUZZER_PIN 17
+#define LDR_PIN 34
+#define LED_PIN 4
+
+// ---------------------------------------------------------
+// PEMBOLEH UBAH SISTEM (SISTEM STATE)
+// ---------------------------------------------------------
+WiFiClient espClient;
+PubSubClient client(espClient);
+
+unsigned long masaTerakhirHantar = 0; 
+float suhuSemasa = 0.0;
+float humidSemasa = 0.0;
+bool dhtValid = false;
+int nilaiLDR = 0;
+
+String statusBuzzer = "OFF";
+String statusWiFi = "Terputus";
+String statusLED = "OFF";
+
+// Fungsi prototaip untuk paparan OLED
+void paparOled();
+
+// ---------------------------------------------------------
+// FUNGSI KHAS: BUNYI BIP DUA KALI (WIFI / RECONNECT)
+// ---------------------------------------------------------
+void bipDuaKali() {
+  digitalWrite(BUZZER_PIN, HIGH);
+  delay(150);
+  digitalWrite(BUZZER_PIN, LOW);
+  delay(150);
+  digitalWrite(BUZZER_PIN, HIGH);
+  delay(150);
+  digitalWrite(BUZZER_PIN, LOW);
+}
+
+// ---------------------------------------------------------
+// FUNGSI KHAS: INISIALISASI WIFI
+// ---------------------------------------------------------
+void setup_wifi() {
+  statusWiFi = "Menghubungkan...";
+  paparOled();
+  Serial.print("Menyambung WiFi...");
+  
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) { 
+    delay(500); 
+    Serial.print("."); 
+  }
+  
+  statusWiFi = "Tersambung";
+  paparOled();
+  Serial.println("\nWiFi Bersambung!");
+  
+  // Bunyi bip 2 kali apabila WiFi berjaya disambung
+  bipDuaKali();
+}
+
+// ---------------------------------------------------------
+// FUNGSI KHAS: PENYAMBUNGAN SEMULA MQTT (RECONNECT)
+// ---------------------------------------------------------
+void reconnect() {
+  while (!client.connected()) {
+    statusWiFi = "Mengkoneksi MQTT...";
+    paparOled();
+    
+    String clientId = "ESP32_" + String(random(0xffff), HEX);
+    if (client.connect(clientId.c_str())) {
+      Serial.println("Pelayan EMQX Bersambung!");
+      statusWiFi = "Tersambung";
+      paparOled();
+      
+      // Bunyi bip 2 kali apabila MQTT berjaya disambung semula
+      bipDuaKali();
+    } else { 
+      statusWiFi = "MQTT Gagal";
+      paparOled();
+      delay(5000); 
+    }
+  }
+}
+
+// ---------------------------------------------------------
+// FUNGSI KHAS: KEMAS KINI PAPARAN OLED
+// ---------------------------------------------------------
+void paparOled() {
+  display.clearDisplay();
+  
+  // Header Monitor
+  display.setTextSize(1);
+  display.setCursor(0, 0);
+  display.print("MONITORING SISTEM");
+  display.drawFastHLine(0, 10, 128, SSD1306_WHITE); // Garis pemisah
+  
+  // Baris 1: Status WiFi
+  display.setCursor(0, 14);
+  display.print("WiFi  : "); display.print(statusWiFi);
+  
+  // Baris 2: Suhu & Humid Semasa (Digabungkan supaya muat skrin)
+  display.setCursor(0, 25);
+  display.print("Temp  : "); 
+  if (dhtValid) {
+    display.print(suhuSemasa, 1); display.print("C");
+  } else {
+    display.print("--C");
+  }
+  display.print(" | Hmd: ");
+  if (dhtValid) {
+    display.print(humidSemasa, 0); display.print("%");
+  } else {
+    display.print("--%");
+  }
+  
+  // Baris 3: LDR & LED Status
+  display.setCursor(0, 36);
+  display.print("LDR   : "); display.print(nilaiLDR);
+  display.print(" | LED: "); display.print(statusLED);
+  
+  // Baris 4: Status Buzzer
+  display.setCursor(0, 48);
+  display.print("Buzzer: "); display.print(statusBuzzer);
+  
+  display.display(); 
+}
+
+void setup() {
+  // 1. Inisialisasi komunikasi Serial & Pin Output/Input
+  Serial.begin(115200);
+  
+  pinMode(BUZZER_PIN, OUTPUT);
+  digitalWrite(BUZZER_PIN, LOW); // Padamkan buzzer pada awal permulaan
+  
+  pinMode(LED_PIN, OUTPUT);
+  digitalWrite(LED_PIN, LOW);    // Padamkan LED pada awal permulaan
+  
+  // Pin LDR ditentukan sebagai input analog
+  pinMode(LDR_PIN, INPUT);
+
+  // 2. Inisialisasi OLED
+  if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { 
+    Serial.println(F("Gagal mengesan OLED SSD1306"));
+    for(;;); // Hentikan program jika skrin gagal dikesan
+  }
+  display.clearDisplay();
+  display.setTextColor(SSD1306_WHITE);
+  paparOled();
+
+  // 3. Inisialisasi DHT11
+  dht.begin();
+  
+  // 4. Inisialisasi WiFi & Konfigurasi MQTT
+  setup_wifi();
+  client.setServer(mqtt_server, 1883);
+}
+
+void loop() {
+  // ---------------------------------------------------------
+  // PENGEKALAN HUBUNGAN RANGKAIAN (MQTT)
+  // ---------------------------------------------------------
+  if (!client.connected()) { 
+    reconnect(); 
+  }
+  client.loop();
+
+  unsigned long masaSekarang = millis();
+  
+  // ---------------------------------------------------------
+  // ALGORITMA BACAAN & PENGHANTARAN DATA (SETIAP 5 SAAT)
+  // ---------------------------------------------------------
+  if (masaSekarang - masaTerakhirHantar > 5000) { 
+    masaTerakhirHantar = masaSekarang;
+    
+    // Membaca data daripada sensor DHT11
+    float t = dht.readTemperature();
+    float h = dht.readHumidity();
+    
+    // Membaca nilai analog dari LDR (0 - 4095)
+    nilaiLDR = analogRead(LDR_PIN);
+    
+    // Logik Kawalan LED berdasarkan LDR:
+    // Jika persekitaran gelap (contoh nilai LDR < 1500), hidupkan LED
+    if (nilaiLDR < 1500) {
+      digitalWrite(LED_PIN, HIGH);
+      statusLED = "ON";
+    } else {
+      digitalWrite(LED_PIN, LOW);
+      statusLED = "OFF";
+    }
+    
+    if (!isnan(t) && !isnan(h)) { 
+      suhuSemasa = t;
+      humidSemasa = h;
+      dhtValid = true;
+      
+      // Sediakan data untuk dihantar (Publish)
+      char bufferSuhu[8];
+      char bufferHumid[8];
+      char bufferLdr[8];
+      
+      dtostrf(suhuSemasa, 1, 1, bufferSuhu); 
+      dtostrf(humidSemasa, 1, 1, bufferHumid); 
+      itoa(nilaiLDR, bufferLdr, 10);
+      
+      // Menghantar data ke MQTT Broker
+      client.publish(topic_suhu, bufferSuhu); 
+      client.publish(topic_humid, bufferHumid); 
+      client.publish(topic_buzzer, statusBuzzer.c_str()); 
+      client.publish(topic_ldr, bufferLdr);
+      client.publish(topic_led, statusLED.c_str());
+      
+      Serial.print("Hantar -> Suhu: "); Serial.print(bufferSuhu);
+      Serial.print(" | Humid: "); Serial.print(bufferHumid);
+      Serial.print(" | LDR: "); Serial.print(bufferLdr);
+      Serial.print(" | LED: "); Serial.print(statusLED);
+      Serial.print(" | Buzzer: "); Serial.println(statusBuzzer);
+    } else {
+      dhtValid = false;
+      Serial.println("Gagal membaca dari sensor DHT11!");
+      
+      // Walaupun DHT gagal, kita masih hantar data LDR & LED
+      char bufferLdr[8];
+      itoa(nilaiLDR, bufferLdr, 10);
+      client.publish(topic_ldr, bufferLdr);
+      client.publish(topic_led, statusLED.c_str());
+    }
+    
+    // Kemas kini paparan OLED secara berkala
+    paparOled();
+  }
+
+  // ---------------------------------------------------------
+  // LOGIK KAWALAN ALARM BUZZER (NON-BLOCKING ALGORITHM)
+  // ---------------------------------------------------------
+  // Jika suhu melebihi 28 C, mulakan kitaran bunyi:
+  // Bunyi selama 2 saat (2000 ms), senyap selama 2 saat (2000 ms), dan ulang.
+  if (dhtValid && suhuSemasa > 28.0) {
+    statusBuzzer = "ON";
+    
+    // Menggunakan pembahagi masa milisaat (kitaran penuh = 4000 ms)
+    unsigned long masaKitaran = millis() % 4000; 
+    
+    if (masaKitaran < 2000) {
+      digitalWrite(BUZZER_PIN, HIGH); // Buzzer berbunyi selama 2 saat pertama
+    } else {
+      digitalWrite(BUZZER_PIN, LOW);  // Buzzer senyap selama 2 saat berikutnya
+    }
+  } else {
+    statusBuzzer = "OFF";
+    digitalWrite(BUZZER_PIN, LOW); // Matikan buzzer jika suhu normal/rendah
+  }
+}
